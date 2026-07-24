@@ -3,8 +3,13 @@ import { db } from "@/db";
 import { layawayOrders, layawayPayments, products } from "@/db/schema";
 import { eq, asc } from "drizzle-orm";
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
-  const id = parseInt(params.id, 10);
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  const orderId = parseInt(id, 10);
+
   const [order] = await db
     .select({
       id: layawayOrders.id,
@@ -20,48 +25,89 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     })
     .from(layawayOrders)
     .leftJoin(products, eq(layawayOrders.productId, products.id))
-    .where(eq(layawayOrders.id, id));
+    .where(eq(layawayOrders.id, orderId));
 
-  if (!order) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!order) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
 
   const payments = await db
     .select()
     .from(layawayPayments)
-    .where(eq(layawayPayments.layawayOrderId, id))
+    .where(eq(layawayPayments.layawayOrderId, orderId))
     .orderBy(asc(layawayPayments.paidAt));
 
   const amountPaid = payments.reduce((sum, p) => sum + p.amount, 0);
 
-  return NextResponse.json({ ...order, payments, amountPaid, balance: order.totalPrice - amountPaid });
+  return NextResponse.json({
+    ...order,
+    payments,
+    amountPaid,
+    balance: order.totalPrice - amountPaid,
+  });
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
-  const id = parseInt(params.id, 10);
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  const orderId = parseInt(id, 10);
+
   const body = await req.json();
 
-  const [order] = await db.select().from(layawayOrders).where(eq(layawayOrders.id, id));
-  if (!order) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const [order] = await db
+    .select()
+    .from(layawayOrders)
+    .where(eq(layawayOrders.id, orderId));
+
+  if (!order) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
 
   const updatable: Record<string, any> = {};
-  if (body.status) updatable.status = body.status;
 
-  const [row] = await db.update(layawayOrders).set(updatable).where(eq(layawayOrders.id, id)).returning();
-
-  // When picked up, remove the product from inventory entirely (it left the shop).
-  if (body.status === "picked_up") {
-    await db.update(products).set({ status: "sold_out", quantity: 0 }).where(eq(products.id, order.productId));
+  if (body.status) {
+    updatable.status = body.status;
   }
-  // If an order is cancelled, release the product back to the shelf.
+
+  const [row] = await db
+    .update(layawayOrders)
+    .set(updatable)
+    .where(eq(layawayOrders.id, orderId))
+    .returning();
+
+  if (body.status === "picked_up") {
+    await db
+      .update(products)
+      .set({ status: "sold_out", quantity: 0 })
+      .where(eq(products.id, order.productId));
+  }
+
   if (body.status === "cancelled") {
-    await db.update(products).set({ status: "active" }).where(eq(products.id, order.productId));
+    await db
+      .update(products)
+      .set({ status: "active" })
+      .where(eq(products.id, order.productId));
   }
 
   return NextResponse.json(row);
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
-  const id = parseInt(params.id, 10);
-  await db.delete(layawayPayments).where(eq(layawayPayments.layawayOrderId, id));
-  await db.delete(layawayOrders).where(eq(layawayOrders.id, id));
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  const orderId = parseInt(id, 10);
+
+  await db
+    .delete(layawayPayments)
+    .where(eq(layawayPayments.layawayOrderId, orderId));
+
+  await db
+    .delete(layawayOrders)
+    .where(eq(layawayOrders.id, orderId));
+
   return NextResponse.json({ ok: true });
 }

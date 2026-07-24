@@ -8,12 +8,13 @@ export const metadata: Metadata = {
   description: "Inventory and layaway manager",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const authed = isAuthed();
+  const authed = await isAuthed();
+
   return (
     <html lang="en">
       <body className="font-body bg-ink-50 min-h-screen">

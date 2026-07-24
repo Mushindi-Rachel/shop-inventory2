@@ -6,3 +6,10 @@ data/*.db-journal
 public/uploads/*
 !public/uploads/.gitkeep
 .env.local
+dist
+# SQLite
+data/
+*.db
+*.db-shm
+*.db-wal
+rebuild-log.txt

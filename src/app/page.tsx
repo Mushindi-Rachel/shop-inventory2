@@ -19,11 +19,21 @@ import {
 export default function DashboardPage() {
   const [data, setData] = useState<any>(null);
 
-  useEffect(() => {
-    fetch("/api/dashboard")
-      .then((r) => r.json())
-      .then(setData);
-  }, []);
+  
+    useEffect(() => {
+  fetch("/api/dashboard")
+    .then(async (r) => {
+      if (!r.ok) {
+        console.error(await r.text());
+        return null;
+      }
+      return r.json();
+    })
+    .then((data) => {
+      if (data) setData(data);
+    })
+    .catch(console.error);
+}, []);
 
   if (!data) {
     return <div className="text-ink-500">Loading your shop overview…</div>;

@@ -4,10 +4,12 @@ import fs from "fs";
 import path from "path";
 import * as schema from "./schema";
 
-const dataDir = path.join(process.cwd(), "data");
+const dataDir = process.env.DB_PATH
+  ? path.dirname(process.env.DB_PATH)
+  : path.join(process.cwd(), "data");
 if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
 
-const dbPath = path.join(dataDir, "shop.db");
+const dbPath = process.env.DB_PATH || path.join(dataDir, "shop.db");
 const sqlite = new Database(dbPath);
 sqlite.pragma("journal_mode = WAL");
 sqlite.pragma("foreign_keys = ON");
