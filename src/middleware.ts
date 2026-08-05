@@ -3,6 +3,9 @@ import { NextRequest, NextResponse } from "next/server";
 const COOKIE_NAME = "shop_auth";
 
 export function middleware(req: NextRequest) {
+  console.log("PATH:", req.nextUrl.pathname);
+  console.log("COOKIE:", req.cookies.get("shop_auth"));
+
   const { pathname } = req.nextUrl;
 
   const isPublic =
